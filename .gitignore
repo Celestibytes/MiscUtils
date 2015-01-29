@@ -1,0 +1,47 @@
+# MinecraftForge
+/forge
+
+# Eclipse
+/eclipse
+/.settings
+/.metadata
+/.classpath
+/.project
+/bin
+
+# IntelliJ IDEA
+/.idea
+/*.iml
+/*.ipr
+/*.iws
+/out
+/atlassian-ide-plugin.xml
+
+# Gradle
+/.gradle
+/build
+/gradle.properties
+
+# ForgeGradle
+/run
+/libs
+
+# Links
+/*.lnk
+
+# Logs
+/logs
+
+# PizzAna
+/pizzanaIdeas.txt
+/TODOForNextRelease.txt
+/*Kopio*
+
+# Okkapel
+*.directory
+
+# Unfinished techne models
+*.wip.tcn
+
+# Misc
+addlicense.sh
