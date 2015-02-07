@@ -39,6 +39,8 @@ public class RBH {
 	public static final RBH INSTANCE = new RBH(false, DEFAULT_BUFFER_COUNT, BUFFER_SIZE);
 
 	private boolean busy = false;
+	private int drawMode = -1;
+	private boolean blending = false;
 	
 	private ByteBuffer bbuf;
 	private ByteBuffer[] bbufs;
@@ -84,16 +86,24 @@ public class RBH {
 		
 		skipMode = false;
 		useTexture = false;
+		blending = false;
 		
 		currRed = (byte)0xFF;
 		currGreen = (byte)0xFF;
 		currBlue = (byte)0xFF;
 		currAlpha = (byte)0xFF;
 		
-		currTex = 0;
+		disableTexture();
+		disableBlending();
+		
 		translX = 0f;
 		translY = 0f;
 		translZ = 0f;
+	}
+	
+	private void afterOper() {
+		disableTexture();
+		disableBlending();
 	}
 	
 	public void attachBuffer(ByteBuffer buffer) {
@@ -112,18 +122,28 @@ public class RBH {
 	}
 	
 	public void startDrawingTriangles() {
+		startDrawing(GL11.GL_TRIANGLES);
+	}
+	
+	public void startDrawingQuads() {
+		startDrawing(GL11.GL_QUADS);
+	}
+	
+	public void startDrawing(int drawMode) {
 		if(busy) {
 			System.err.println("RBH is currently busy!");
 			return;
 		}
 		reset();
 		
+		this.drawMode = drawMode;
 		busy = true;
 	}
 	
 	public void finishEditing() {
 		bbuf.position(attachedBufferPos);
 		bbuf.limit(attachedBufferLimit);
+		afterOper();
 		busy = false;
 	}
 	
@@ -133,6 +153,7 @@ public class RBH {
 		bbuf.position(0);
 		ret.put(bbuf);
 		ret.flip();
+		afterOper();
 		busy = false;
 		return ret;
 	}
@@ -142,12 +163,59 @@ public class RBH {
 		bbuf.limit(bbuf.position());
 		bbuf.position(0);
 		bbuf.get(ret);
+		afterOper();
 		busy = false;
 		return ret;
 	}
 	
 	public boolean isBusy() {
 		return busy;
+	}
+	
+	public void enableTexture(int tex) {
+		if(!useTexture) {
+			GL11.glEnable(GL11.GL_TEXTURE_2D);
+			useTexture = true;
+		}
+		currTex = tex;
+		GL11.glBindTexture(GL11.GL_TEXTURE_2D, currTex);
+	}
+	
+	public void disableTexture() {
+		currTex = 0;
+		GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+		if(useTexture) {
+			GL11.glDisable(GL11.GL_TEXTURE_2D);
+			useTexture = false;
+		}
+	}
+	
+	public int getCurrTexture() {
+		return currTex;
+	}
+	
+	/** Enables GL_BLEND and sets the default blend mode */
+	public void enableBlending() {
+		if(!blending) {
+			blending = true;
+			GL11.glEnable(GL11.GL_BLEND);
+		}
+		GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+	}
+	
+	public void enableBlending(int gl_sfactor, int gl_dfactor) {
+		if(!blending) {
+			blending = true;
+			GL11.glEnable(GL11.GL_BLEND);
+		}
+		GL11.glBlendFunc(gl_sfactor, gl_dfactor);
+	}
+	
+	public void disableBlending() {
+		if(blending) {
+			blending = false;
+			GL11.glDisable(GL11.GL_BLEND);
+		}
 	}
 	
 	public void setVertRenderCount(int count) {
@@ -235,6 +303,19 @@ public class RBH {
 		skipMode = enabled;
 	}
 	
+	public void setColorRBG(int color) {
+		currRed = (byte)((color & 0xFF000000) >> 24);
+		currGreen = (byte)((color & 0xFF0000) >> 16);
+		currBlue = (byte)((color & 0xFF00) >> 8);
+	}
+	
+	public void setColorRBGA(int color) {
+		currRed = (byte)((color & 0xFF000000) >> 24);
+		currGreen = (byte)((color & 0xFF0000) >> 16);
+		currBlue = (byte)((color & 0xFF00) >> 8);
+		currAlpha = (byte)(color & 0xFF);
+	}
+	
 	public void setColor(float r, float g, float b) {
 		currRed = 0;
 		currGreen = 0;
@@ -275,16 +356,6 @@ public class RBH {
 		currAlpha |= (int)(0xFF * a);
 	}
 	
-	public void setTexture(int tex) {
-		if(tex == 0) {
-			useTexture = false;
-		} else {
-			useTexture = true;
-		}
-		
-		currTex = tex;
-	}
-	
 	public void setTranslation(float x, float y, float z) {
 		translX = x;
 		translY = y;
@@ -297,20 +368,20 @@ public class RBH {
 		translZ += z;
 	}
 	
-	public void writeVertexTCP(float u, float v, byte r, byte g, byte b, byte a, float x, float y, float z) {
+	public void writeVertexTCP(float u, float v, int r, int g, int b, int a, float x, float y, float z) {
 		useTexture = true;
 		
 		bbuf.putFloat(u);
 		bbuf.putFloat(v);
 		
-		bbuf.put(r);
-		bbuf.put(g);
-		bbuf.put(b);
-		bbuf.put(a);
+		bbuf.put((byte)(r & 0xFF));
+		bbuf.put((byte)(g & 0xFF));
+		bbuf.put((byte)(b & 0xFF));
+		bbuf.put((byte)(a & 0xFF));
 		
-		bbuf.putFloat(x);
-		bbuf.putFloat(y);
-		bbuf.putFloat(z);
+		bbuf.putFloat(x + translX);
+		bbuf.putFloat(y + translY);
+		bbuf.putFloat(z + translZ);
 		
 		writeZerof();
 		writeZerof();
@@ -318,7 +389,7 @@ public class RBH {
 		vertexCount++;
 	}
 	
-	public void writeVertexCP(byte r, byte g, byte b, byte a, float x, float y, float z) {
+	public void writeVertexCP(int r, int g, int b, int a, float x, float y, float z) {
 		if(skipMode) {
 			bbuf.position(bbuf.position() + 8);
 		} else {
@@ -326,14 +397,14 @@ public class RBH {
 			writeZerof();
 		}
 		
-		bbuf.put(r);
-		bbuf.put(g);
-		bbuf.put(b);
-		bbuf.put(a);
+		bbuf.put((byte)(r & 0xFF));
+		bbuf.put((byte)(g & 0xFF));
+		bbuf.put((byte)(b & 0xFF));
+		bbuf.put((byte)(a & 0xFF));
 		
-		bbuf.putFloat(x);
-		bbuf.putFloat(y);
-		bbuf.putFloat(z);
+		bbuf.putFloat(x + translX);
+		bbuf.putFloat(y + translY);
+		bbuf.putFloat(z + translZ);
 		
 		writeZerof();
 		writeZerof();
@@ -356,9 +427,9 @@ public class RBH {
 			bbuf.put(currAlpha);
 		}
 		
-		bbuf.putFloat(x);
-		bbuf.putFloat(y);
-		bbuf.putFloat(z);
+		bbuf.putFloat(x + translX);
+		bbuf.putFloat(y + translY);
+		bbuf.putFloat(z + translZ);
 		
 		writeZerof();
 		writeZerof();
@@ -379,9 +450,9 @@ public class RBH {
 			bbuf.put(currAlpha);
 		}
 		
-		bbuf.putFloat(x);
-		bbuf.putFloat(y);
-		bbuf.putFloat(z);
+		bbuf.putFloat(x + translX);
+		bbuf.putFloat(y + translY);
+		bbuf.putFloat(z + translZ);
 		
 		writeZerof();
 		writeZerof();
@@ -389,7 +460,25 @@ public class RBH {
 		vertexCount++;
 	}
 	
+	/** Draws vertices in the buffer and disables blending and textures, also resets current texture */
 	public void draw() {
+		if(!busy) {
+			System.err.println("Not drawing!");
+			return;
+		}
+		
+		if(drawMode == -1) {
+			busy = false;
+			System.err.println("Invalid drawMode or was not drawing!");
+			return;
+		}
+		
+		if(vertexCount < 1) {
+			busy = false;
+			return;
+		}
+		
+		vertexRenderCount = vertexCount;
 		if(useTexture) {
 			bbuf.position(0);
 			GL11.glTexCoordPointer(2, GL11.GL_FLOAT, BUFFER_STRIDE, bbuf);
@@ -404,7 +493,7 @@ public class RBH {
 		GL11.glVertexPointer(3, GL11.GL_FLOAT, BUFFER_STRIDE, bbuf);
 		GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
 		
-		GL11.glDrawArrays(GL11.GL_TRIANGLES, vertexRenderOffset, vertexRenderCount);
+		GL11.glDrawArrays(drawMode, vertexRenderOffset, vertexRenderCount);
 		
 		GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
 		
@@ -414,6 +503,7 @@ public class RBH {
 			GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
 		}
 		
+		afterOper();
 		busy = false;
 	}
 	
