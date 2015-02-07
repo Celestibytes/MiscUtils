@@ -220,9 +220,79 @@ public class Bytes {
 		os.write((int)((v >> 56) & 0x255));
 	}
 	
-	/** Write string with type indicator, null-terminated, any nulls will be ignored! */
+	/** Write string with type indicator, null-terminated, any nulls in the string will be ignored! */
 	public static void wtst(String v, OutputStream os) throws IOException {
 		os.write('x');
+		char c;
+		for(int i = 0; i < v.length(); i++) {
+			c = v.charAt(i);
+			if(c != '\0') {
+				os.write(c); // Note; all values above 127 are ignored 
+			}
+		}
+		os.write('\0');
+	}
+	
+	/** Write byte */ 
+	public static void wby(byte v, OutputStream os) throws IOException {
+		os.write(v);
+	}
+	
+	/** Write boolean */ 
+	public static void wbo(boolean v, OutputStream os) throws IOException {
+		os.write(v ? 0x61 : 0);
+	}
+	
+	/** Write short */ 
+	public static void wsh(short v, OutputStream os) throws IOException {
+		os.write(v);
+		os.write(v >> 8);
+	}
+	
+	/** Write int */ 
+	public static void wi(int v, OutputStream os) throws IOException {
+		os.write(v);
+		os.write(v >> 8);
+		os.write(v >> 16);
+		os.write(v >> 24);
+	}
+	
+	/** Write long */ 
+	public static void wl(long v, OutputStream os) throws IOException {
+		os.write((int)(v & 0x255));
+		os.write((int)((v >> 8) & 0x255));
+		os.write((int)((v >> 16) & 0x255));
+		os.write((int)((v >> 24) & 0x255));
+		os.write((int)((v >> 32) & 0x255));
+		os.write((int)((v >> 40) & 0x255));
+		os.write((int)((v >> 48) & 0x255));
+		os.write((int)((v >> 56) & 0x255));
+	}
+	
+	/** Write float */ 
+	public static void wf(float vv, OutputStream os) throws IOException {
+		int v = Float.floatToIntBits(vv);
+		os.write(v);
+		os.write(v >> 8);
+		os.write(v >> 16);
+		os.write(v >> 24);
+	}
+	
+	/** Write double */ 
+	public static void wd(double vv, OutputStream os) throws IOException {
+		long v = Double.doubleToLongBits(vv);
+		os.write((int)(v & 0x255));
+		os.write((int)((v >> 8) & 0x255));
+		os.write((int)((v >> 16) & 0x255));
+		os.write((int)((v >> 24) & 0x255));
+		os.write((int)((v >> 32) & 0x255));
+		os.write((int)((v >> 40) & 0x255));
+		os.write((int)((v >> 48) & 0x255));
+		os.write((int)((v >> 56) & 0x255));
+	}
+	
+	/** Write string, null-terminated, any nulls in the string will be ignored! */
+	public static void wst(String v, OutputStream os) throws IOException {
 		char c;
 		for(int i = 0; i < v.length(); i++) {
 			c = v.charAt(i);
